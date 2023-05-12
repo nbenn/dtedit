@@ -16,7 +16,13 @@ dtedit(
   dt_opts = list(pageLength = 10L)
 )
 
-build_modal_fields(dat, cols, types = NULL, values = NULL, ...)
+build_modal_fields(
+  dat,
+  cols,
+  types = NULL,
+  args = NULL,
+  name_prefix = "dtedit"
+)
 }
 \arguments{
 \item{input, output}{Shiny \code{input}/\code{output} objects}
@@ -27,7 +33,7 @@ build_modal_fields(dat, cols, types = NULL, values = NULL, ...)
 
 \item{fields}{Modal fields}
 
-\item{values}{(Optional) values}
+\item{values}{Values for modal fields}
 
 \item{insert}{Callback function for data insert operations}
 
@@ -39,7 +45,9 @@ build_modal_fields(dat, cols, types = NULL, values = NULL, ...)
 
 \item{types}{Shiny input types}
 
-\item{...}{Forwarded to \code{build_field()}}
+\item{args}{(Optional) input field arguments}
+
+\item{name_prefix}{Prefix for input names}
 }
 \description{
 Functions for adding modal-based editing functionality to a DT table in

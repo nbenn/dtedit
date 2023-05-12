@@ -81,31 +81,12 @@ map_types <- function(dat, types = NULL) {
   res
 }
 
-build_field <- function(x, col, typ, val, name = "dtedit", text_width = "100%",
-                        textarea_width = "570px", textarea_height = "200px",
-                        date_width = "100px", numeric_width = "100px",
-                        select_width = "100%") {
-
-  input_choices <- function(x) {
-    if (is.factor(x)) levels(x) else unique(x)
-  }
+build_field <- function(typ, name, label, args) {
 
   fun <- get(typ, envir = asNamespace("shiny"))
-  nme <- paste(name, typ, col, sep = "-")
+  res <- do.call(fun, c(list(name, label), args))
 
-  res <- switch(
-    typ,
-    dateInput = fun(nme, col, value = val, width = date_width),
-    selectInput = fun(nme, col, choices = input_choices(x), selected = val,
-                      width = select_width),
-    numericInput = fun(nme, col, value = val, width = numeric_width),
-    textAreaInput = fun(nme, col, value = val, width = textarea_width,
-                        height = textarea_height),
-    textInput = fun(nme, col, value = val, width = text_width),
-    stop("Invalid input type")
-  )
-
-  attr(res, "field_id") <- nme
+  attr(res, "field_id") <- name
 
   res
 }
@@ -113,21 +94,38 @@ build_field <- function(x, col, typ, val, name = "dtedit", text_width = "100%",
 #' @param dat Data (passed as `data.frame`)
 #' @param cols Relevant columns
 #' @param types Shiny input types
-#' @param values (Optional) values
-#' @param ... Forwarded to `build_field()`
+#' @param args (Optional) input field arguments
+#' @param name_prefix Prefix for input names
 #'
 #' @rdname dtedit
 #' @export
-build_modal_fields <- function(dat, cols, types = NULL, values = NULL, ...) {
+build_modal_fields <- function(dat, cols, types = NULL, args = NULL,
+                               name_prefix = "dtedit") {
 
-  if (is.null(values)) {
-    values <- list(NULL)
+  if (is.null(args)) {
+    args <- list()
   }
+
+  stopifnot(!is.null(names(args)), all(names(args) %in% cols))
+
+  miss <- setdiff(cols, names(args))
+  args[miss] <- rep(list(list(value = NULL)), length(miss))
+
+  stopifnot(
+    setequal(names(args), cols), all(vapply(args, is.list, logical(1L)))
+  )
 
   tmp <- dat[, cols]
   typ <- map_types(tmp, types)
 
-  Map(build_field, tmp, cols, typ, values, MoreArgs = list(...))
+  sel <- typ[typ == "selectInput" & !names(typ) %in% names(args)]
+
+  args[sel] <- Map(list, choices = lapply(dat[, sel], levels))
+
+  args <- args[cols]
+  typ <- typ[cols]
+
+  Map(build_field, typ, paste(name_prefix, typ, cols, sep = "-"), cols, args)
 }
 
 insert_name <- function(name) {

@@ -25,9 +25,14 @@ data_cleaner <- function(path) {
 server <- function(input, output) {
 
   dat <- datasets::iris
-  dat <- split(dat, dat$Species)
-  dat <- lapply(dat, head)
-  dat <- do.call(rbind, dat)
+
+  sl <- unique(dat$Sepal.Length)
+
+  args <- list(
+    Sepal.Length = list(choices = split(as.character(sl), floor(sl)))
+  )
+
+  dat$Sepal.Length <- as.factor(dat$Sepal.Length)
 
   rownames(dat) <- NULL
 
@@ -49,7 +54,7 @@ server <- function(input, output) {
 
   dtedit(
     input, output, "sub_iris", sub_iris,
-    fields = build_modal_fields(dat, edit_cols),
+    fields = build_modal_fields(dat, edit_cols, args = args),
     values = stats::setNames("species", input_col),
     insert = function(x) {
       write_data(rbind(read_data(), x))
