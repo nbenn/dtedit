@@ -10,9 +10,11 @@ dtedit(
   output,
   name,
   rv_dat,
+  cols,
   fields,
   values,
   insert,
+  delete,
   dt_opts = list(pageLength = 10L)
 )
 
@@ -31,17 +33,17 @@ build_modal_fields(
 
 \item{rv_dat}{Data (as \code{\link[shiny:reactiveVal]{shiny::reactiveVal()}})}
 
+\item{cols}{Relevant columns}
+
 \item{fields}{Modal fields}
 
 \item{values}{Values for modal fields}
 
-\item{insert}{Callback function for data insert operations}
+\item{insert, delete}{Callback functions for data insert/delete operations}
 
 \item{dt_opts}{Options for \code{DT}}
 
 \item{dat}{Data (passed as \code{data.frame})}
-
-\item{cols}{Relevant columns}
 
 \item{types}{Shiny input types}
 

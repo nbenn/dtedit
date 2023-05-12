@@ -65,7 +65,7 @@ server <- function(input, output) {
   })
 
   dtedit(
-    input, output, "sub_iris", sub_iris,
+    input, output, "sub_iris", sub_iris, setdiff(colnames(dat), "row_id"),
     fields = build_modal_fields(dat, edit_cols, types = typs, args = args),
     values = stats::setNames("species", input_col),
     insert = function(new, dat) {

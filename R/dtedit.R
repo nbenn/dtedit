@@ -6,19 +6,20 @@
 #' @param input,output Shiny `input`/`output` objects
 #' @param name Output name
 #' @param rv_dat Data (as [shiny::reactiveVal()])
+#' @param cols Columns to show
 #' @param fields Modal fields
 #' @param values Values for modal fields
-#' @param insert Callback function for data insert operations
+#' @param insert,delete Callback functions for data insert/delete operations
 #' @param dt_opts Options for `DT`
 #'
 #' @export
-dtedit <- function(input, output, name, rv_dat, fields, values, insert,
+dtedit <- function(input, output, name, rv_dat, cols, fields, values, insert,
                    delete, dt_opts = list(pageLength = 10L)) {
 
   dt_proxy <- DT::dataTableProxy(dt_name(name))
 
   output[[dt_name(name)]] <- DT::renderDT(
-    rv_dat(),
+    rv_dat()[, cols],
     options = dt_opts,
     selection = "single",
     rownames = FALSE
@@ -41,7 +42,7 @@ dtedit <- function(input, output, name, rv_dat, fields, values, insert,
 
     rv_dat(insert(as.data.frame(new_data), rv_dat()))
 
-    DT::replaceData(dt_proxy, rv_dat(), rownames = FALSE)
+    DT::replaceData(dt_proxy, rv_dat()[, cols], rownames = FALSE)
 
     shiny::removeModal()
   })
@@ -54,7 +55,7 @@ dtedit <- function(input, output, name, rv_dat, fields, values, insert,
 
       rv_dat(delete(row, rv_dat()))
 
-      DT::replaceData(dt_proxy, rv_dat(), rownames = FALSE)
+      DT::replaceData(dt_proxy, rv_dat()[, cols], rownames = FALSE)
 
       shiny::removeModal()
     }
