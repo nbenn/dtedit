@@ -26,6 +26,7 @@ data_cleaner <- function(path) {
 server <- function(input, output) {
 
   dat <- datasets::iris
+  dat <- cbind(row_id = seq_len(nrow(dat)), dat)
 
   sl <- unique(dat$Sepal.Length)
   sw <- unique(dat$Sepal.Width)
@@ -48,7 +49,7 @@ server <- function(input, output) {
   rownames(dat) <- NULL
 
   input_col <- "Species"
-  edit_cols <- setdiff(colnames(dat), input_col)
+  edit_cols <- setdiff(colnames(dat), c(input_col, "row_id"))
 
   path <- data_setup(dat)
   onStop(data_cleaner(path))
@@ -67,8 +68,18 @@ server <- function(input, output) {
     input, output, "sub_iris", sub_iris,
     fields = build_modal_fields(dat, edit_cols, types = typs, args = args),
     values = stats::setNames("species", input_col),
-    insert = function(x) {
-      write_data(rbind(read_data(), x))
+    insert = function(new, dat) {
+      old <- read_data()
+      new <- cbind(row_id = max(old$row_id) + 1L, new)
+      write_data(rbind(old, new))
+      rbind(dat, new)
+    },
+    delete = function(row, dat) {
+      old <- read_data()
+      hit <- which(old$row_id == dat$row_id[row])
+      stopifnot(length(hit) == 1L)
+      write_data(old[-hit, ])
+      dat[-row, ]
     }
   )
 }
