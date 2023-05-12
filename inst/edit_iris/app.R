@@ -92,6 +92,8 @@ server <- function(input, output) {
       dat
     }
   )
+
+  exportTestValues(sub_iris = sub_iris())
 }
 
 ui <- fluidPage(
