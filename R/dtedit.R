@@ -59,7 +59,9 @@ map_types <- function(dat, types = NULL) {
     numeric = "numericInput"
   )
 
-  valid_types <- c(unique(type_map), "textAreaInput")
+  valid_types <- c(
+    unique(type_map), "textAreaInput", "shinytreeview::treecheckInput"
+  )
 
   res <- vapply(dat, class, character(1L))
   res <- type_map[res]
@@ -83,7 +85,17 @@ map_types <- function(dat, types = NULL) {
 
 build_field <- function(typ, name, label, args) {
 
-  fun <- get(typ, envir = asNamespace("shiny"))
+  fun <- strsplit(typ, "::")[[1L]]
+
+  if (length(fun) == 2L) {
+    ns <- asNamespace(fun[1L])
+    fun <- fun[2L]
+  } else {
+    stopifnot(length(fun) == 1L)
+    ns <- asNamespace("shiny")
+  }
+
+  fun <- get(fun, envir = ns)
   res <- do.call(fun, c(list(name, label), args))
 
   attr(res, "field_id") <- name
@@ -124,8 +136,9 @@ build_modal_fields <- function(dat, cols, types = NULL, args = NULL,
 
   args <- args[cols]
   typ <- typ[cols]
+  nme <- paste(name_prefix, sub("^.+::", "", typ), cols, sep = "-")
 
-  Map(build_field, typ, paste(name_prefix, typ, cols, sep = "-"), cols, args)
+  Map(build_field, typ, nme, cols, args)
 }
 
 insert_name <- function(name) {

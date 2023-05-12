@@ -1,5 +1,6 @@
 library(shiny)
-library(dtedit2)
+#library(dtedit2)
+devtools::load_all()
 
 data_setup <- function(dat) {
   tmp <- tempfile()
@@ -27,12 +28,22 @@ server <- function(input, output) {
   dat <- datasets::iris
 
   sl <- unique(dat$Sepal.Length)
+  sw <- unique(dat$Sepal.Width)
 
-  args <- list(
-    Sepal.Length = list(choices = split(as.character(sl), floor(sl)))
+  sw <- data.frame(
+    major = as.character(floor(sw)),
+    minor = as.character(sw)
   )
 
+  args <- list(
+    Sepal.Length = list(choices = split(as.character(sl), floor(sl))),
+    Sepal.Width = list(choices = shinytreeview::make_tree(sw, colnames(sw)))
+  )
+
+  typs <- c(Sepal.Width = "shinytreeview::treecheckInput")
+
   dat$Sepal.Length <- as.factor(dat$Sepal.Length)
+  dat$Sepal.Width <- as.factor(dat$Sepal.Width)
 
   rownames(dat) <- NULL
 
@@ -54,7 +65,7 @@ server <- function(input, output) {
 
   dtedit(
     input, output, "sub_iris", sub_iris,
-    fields = build_modal_fields(dat, edit_cols, args = args),
+    fields = build_modal_fields(dat, edit_cols, types = typs, args = args),
     values = stats::setNames("species", input_col),
     insert = function(x) {
       write_data(rbind(read_data(), x))
