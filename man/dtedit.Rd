@@ -15,6 +15,7 @@ dtedit(
   values,
   insert,
   delete,
+  update,
   dt_opts = list(pageLength = 10L)
 )
 
@@ -39,7 +40,8 @@ build_modal_fields(
 
 \item{values}{Values for modal fields}
 
-\item{insert, delete}{Callback functions for data insert/delete operations}
+\item{insert, delete, update}{Callback functions for data insert, delete and
+update operations}
 
 \item{dt_opts}{Options for \code{DT}}
 

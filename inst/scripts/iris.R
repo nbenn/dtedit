@@ -1,6 +1,5 @@
 library(shiny)
-#library(dtedit2)
-devtools::load_all()
+library(dtedit2)
 
 data_setup <- function(dat) {
   tmp <- tempfile()
@@ -65,7 +64,8 @@ server <- function(input, output) {
   })
 
   dtedit(
-    input, output, "sub_iris", sub_iris, setdiff(colnames(dat), "row_id"),
+    input, output, "sub_iris", sub_iris,
+    cols = setdiff(colnames(dat), "row_id"),
     fields = build_modal_fields(dat, edit_cols, types = typs, args = args),
     values = stats::setNames("species", input_col),
     insert = function(new, dat) {
@@ -80,6 +80,16 @@ server <- function(input, output) {
       stopifnot(length(hit) == 1L)
       write_data(old[-hit, ])
       dat[-row, ]
+    },
+    update = function(row, new, dat) {
+      old <- read_data()
+      hit <- which(old$row_id == dat$row_id[row])
+      stopifnot(length(hit) == 1L)
+      new <- cbind(row_id = old$row_id[hit], new)
+      old[hit, ] <- new
+      write_data(old)
+      dat[row, ] <- new
+      dat
     }
   )
 }

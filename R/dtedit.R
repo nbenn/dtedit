@@ -9,12 +9,13 @@
 #' @param cols Columns to show
 #' @param fields Modal fields
 #' @param values Values for modal fields
-#' @param insert,delete Callback functions for data insert/delete operations
+#' @param insert,delete,update Callback functions for data insert, delete and
+#' update operations
 #' @param dt_opts Options for `DT`
 #'
 #' @export
 dtedit <- function(input, output, name, rv_dat, cols, fields, values, insert,
-                   delete, dt_opts = list(pageLength = 10L)) {
+                   delete, update, dt_opts = list(pageLength = 10L)) {
 
   dt_proxy <- DT::dataTableProxy(dt_name(name))
 
@@ -30,7 +31,15 @@ dtedit <- function(input, output, name, rv_dat, cols, fields, values, insert,
   })
 
   shiny::observeEvent(input[[rm_name(name)]], {
-    shiny::showModal(delete_modal(name))
+    if (is_row_selected(input, name)) {
+      shiny::showModal(delete_modal(name))
+    }
+  })
+
+  shiny::observeEvent(input[[edit_name(name)]], {
+    if (is_row_selected(input, name)) {
+      shiny::showModal(update_modal(name, fields))
+    }
   })
 
   shiny::observeEvent(input[[insert_name(name)]], {
@@ -49,16 +58,37 @@ dtedit <- function(input, output, name, rv_dat, cols, fields, values, insert,
 
   shiny::observeEvent(input[[delete_name(name)]], {
 
-    row <- input[[selected_row_name(name)]]
+    dat <- rv_dat()
+    row <- get_selected_row(input, name, nrow(dat))
 
     if (length(row)) {
 
-      rv_dat(delete(row, rv_dat()))
+      rv_dat(delete(row, dat))
 
       DT::replaceData(dt_proxy, rv_dat()[, cols], rownames = FALSE)
-
-      shiny::removeModal()
     }
+
+    shiny::removeModal()
+  })
+
+  shiny::observeEvent(input[[update_name(name)]], {
+
+    dat <- rv_dat()
+    row <- get_selected_row(input, name, nrow(dat))
+
+    if (length(row)) {
+
+      new_data <- get_input_fields(
+        input,
+        c(vapply(fields, attr, character(1L), "field_id"), values)
+      )
+
+      rv_dat(update(row, as.data.frame(new_data), dat))
+
+      DT::replaceData(dt_proxy, rv_dat()[, cols], rownames = FALSE)
+    }
+
+    shiny::removeModal()
   })
 
   output[[name]] <- dtedit_ui(name)
@@ -166,12 +196,20 @@ delete_name <- function(name) {
   paste0(name, "_delete")
 }
 
+update_name <- function(name) {
+  paste0(name, "_update")
+}
+
 add_name <- function(name) {
   paste0(name, "_add")
 }
 
 rm_name <- function(name) {
   paste0(name, "_rm")
+}
+
+edit_name <- function(name) {
+  paste0(name, "_edit")
 }
 
 dt_name <- function(name) {
@@ -210,10 +248,27 @@ delete_modal <- function(name, title = "Delete", size = "m") {
   )
 }
 
-dtedit_ui <- function(name, label_add = "New", label_rm = "Delete") {
+update_modal <- function(name, fields, title = "Edit", size = "m") {
+
+  shiny::modalDialog(
+    title = title,
+    fields,
+    footer = shiny::column(
+      cancel_modal(),
+      shiny::actionButton(update_name(name), "Save"),
+      width = 12
+    ),
+    size = size
+  )
+}
+
+dtedit_ui <- function(name, label_add = "New", label_rm = "Delete",
+                      label_edit = "Edit") {
+
   shiny::renderUI(
     shiny::div(
       shiny::actionButton(add_name(name), label_add),
+      shiny::actionButton(edit_name(name), label_edit),
       shiny::actionButton(rm_name(name), label_rm),
       shiny::br(),
       shiny::br(),
@@ -228,3 +283,18 @@ get_input_fields <- function(input, fields) {
 }
 
 cancel_modal <- function() shiny::modalButton("Cancel")
+
+get_selected_row <- function(input, name, max) {
+
+  row <- input[[selected_row_name(name)]]
+
+  if (length(row)) {
+    stopifnot(length(row) == 1L, row > 0L, row <= max)
+  }
+
+  row
+}
+
+is_row_selected <- function(input, name) {
+  shiny::isTruthy(input[[selected_row_name(name)]])
+}
