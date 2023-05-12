@@ -130,6 +130,14 @@ map_types <- function(dat, types = NULL) {
   res
 }
 
+default_numeric_value <- function(x) {
+  list(value = stats::median(x))
+}
+
+default_select_value <- function(x) {
+  list(choices = levels(x))
+}
+
 build_field <- function(typ, name, label, args) {
 
   fun <- strsplit(typ, "::")[[1L]]
@@ -158,17 +166,33 @@ build_field <- function(typ, name, label, args) {
 #'
 #' @rdname dtedit
 #' @export
-build_modal_fields <- function(dat, cols, types = NULL, args = NULL,
-                               name_prefix = "dtedit") {
+build_modal_fields <- function(dat, cols = names(dat), types = NULL,
+                               args = NULL, name_prefix = "dtedit") {
+
+  fix_num <- function(typ, args, dat) {
+    sel <- names(
+      typ[typ == "numericInput" & !names(typ) %in% names(args)[lengths(args)]]
+    )
+    args[sel] <- lapply(dat[, sel, drop = FALSE], default_numeric_value)
+    args
+  }
+
+  fix_sel <- function(typ, args, dat) {
+    sel <- names(
+      typ[typ == "selectInput" & !names(typ) %in% names(args)[lengths(args)]]
+    )
+    args[sel] <- lapply(dat[, sel, drop = FALSE], default_select_value)
+    args
+  }
 
   if (is.null(args)) {
     args <- list()
+  } else {
+    stopifnot(!is.null(names(args)), all(names(args) %in% cols))
   }
 
-  stopifnot(!is.null(names(args)), all(names(args) %in% cols))
-
   miss <- setdiff(cols, names(args))
-  args[miss] <- rep(list(list(value = NULL)), length(miss))
+  args[miss] <- rep(list(list()), length(miss))
 
   stopifnot(
     setequal(names(args), cols), all(vapply(args, is.list, logical(1L)))
@@ -177,9 +201,8 @@ build_modal_fields <- function(dat, cols, types = NULL, args = NULL,
   tmp <- dat[, cols]
   typ <- map_types(tmp, types)
 
-  sel <- typ[typ == "selectInput" & !names(typ) %in% names(args)]
-
-  args[sel] <- Map(list, choices = lapply(dat[, sel], levels))
+  args <- fix_num(typ, args, dat)
+  args <- fix_sel(typ, args, dat)
 
   args <- args[cols]
   typ <- typ[cols]

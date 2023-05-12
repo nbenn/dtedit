@@ -21,7 +21,7 @@ dtedit(
 
 build_modal_fields(
   dat,
-  cols,
+  cols = names(dat),
   types = NULL,
   args = NULL,
   name_prefix = "dtedit"
