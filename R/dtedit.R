@@ -131,7 +131,7 @@ map_types <- function(dat, types = NULL) {
 }
 
 default_numeric_value <- function(x) {
-  list(value = stats::median(x))
+  list(value = stats::quantile(x, 0.5, type = 1, names = FALSE))
 }
 
 default_select_value <- function(x) {

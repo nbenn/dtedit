@@ -36,8 +36,14 @@ server <- function(input, output) {
   )
 
   args <- list(
-    Sepal.Length = list(choices = split(as.character(sl), floor(sl))),
-    Sepal.Width = list(choices = shinytreeview::make_tree(sw, colnames(sw)))
+    Sepal.Length = list(
+      choices = split(as.character(sl), floor(sl)),
+      selected = sl[1L]
+    ),
+    Sepal.Width = list(
+      choices = shinytreeview::make_tree(sw, colnames(sw)),
+      selected = sw$minor[1L]
+    )
   )
 
   typs <- c(Sepal.Width = "shinytreeview::treecheckInput")
@@ -93,7 +99,10 @@ server <- function(input, output) {
     }
   )
 
-  exportTestValues(sub_iris = sub_iris())
+  exportTestValues(
+    sub_iris = sub_iris(),
+    read_data = read_data
+  )
 }
 
 ui <- fluidPage(
