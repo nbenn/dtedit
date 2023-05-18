@@ -170,17 +170,17 @@ build_modal_fields <- function(dat, cols = names(dat), types = NULL,
                                args = NULL, name_prefix = "dtedit") {
 
   fix_num <- function(typ, args, dat) {
-    sel <- names(
-      typ[typ == "numericInput" & !names(typ) %in% names(args)[lengths(args)]]
-    )
+    sel <- typ == "numericInput" &
+      !names(typ) %in% names(args)[lengths(args) > 0L]
+    sel <- names(typ[sel])
     args[sel] <- lapply(dat[, sel, drop = FALSE], default_numeric_value)
     args
   }
 
   fix_sel <- function(typ, args, dat) {
-    sel <- names(
-      typ[typ == "selectInput" & !names(typ) %in% names(args)[lengths(args)]]
-    )
+    sel <- typ == "selectInput" &
+      !names(typ) %in% names(args)[lengths(args) > 0L]
+    sel <- names(typ[sel])
     args[sel] <- lapply(dat[, sel, drop = FALSE], default_select_value)
     args
   }

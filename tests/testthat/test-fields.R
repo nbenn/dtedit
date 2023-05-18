@@ -20,4 +20,20 @@ test_that("modal field builder", {
   for (field in fields) {
     expect_s3_class(field, "shiny.tag")
   }
+
+  sl <- unique(dat$Sepal.Length)
+
+  args <- list(
+    Sepal.Length = list(
+      choices = split(as.character(sl), floor(sl)),
+      selected = sl[1L]
+    )
+  )
+
+  dat$Sepal.Length <- as.factor(dat$Sepal.Length)
+
+  fields <- build_modal_fields(dat,
+    cols = c("Sepal.Length", "Petal.Length", "Petal.Width"),
+    args = args
+  )
 })
