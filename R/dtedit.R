@@ -38,7 +38,14 @@ dtedit <- function(input, output, name, rv_dat, cols, fields, values, insert,
 
   shiny::observeEvent(input[[edit_name(name)]], {
     if (is_row_selected(input, name)) {
+
+      dat <- rv_dat()
+      row <- get_selected_row(input, name, nrow(dat))
+
       shiny::showModal(update_modal(name, fields))
+
+      funs <- lapply(fields, attr, "updater")
+      Map(do.call, funs, lapply(dat[row, names(funs)], list))
     }
   })
 
@@ -130,6 +137,37 @@ map_types <- function(dat, types = NULL) {
   res
 }
 
+map_updater <- function(field) {
+  switch(
+    field,
+    textInput = function(id, value) {
+      shiny::updateTextInput(inputId = id, value = value)
+    },
+    textAreaInput = function(id, value) {
+      shiny::updateTextAreaInput(inputId = id, value = value)
+    },
+    dateInput = function(id, value) {
+      shiny::updateDateInput(inputId = id, value = value)
+    },
+    selectInput = function(id, value) {
+      shiny::updateSelectInput(inputId = id, selected = value)
+    },
+    numericInput = function(id, value) {
+      shiny::updateNumericInput(inputId = id, value = value)
+    },
+    `shinytreeview::treecheckInput` = function(id, value) {
+      shinytreeview::updateTreeview(inputId = id, selected = value)
+    },
+    stop("unknown mapping for updater")
+  )
+}
+
+get_updater <- function(id, field) {
+  id <- force(id)
+  fun <- map_updater(field)
+  function(value) fun(id, value)
+}
+
 default_numeric_value <- function(x) {
   list(value = stats::quantile(x, 0.5, type = 1, names = FALSE))
 }
@@ -154,6 +192,7 @@ build_field <- function(typ, name, label, args) {
   res <- do.call(fun, c(list(name, label), args))
 
   attr(res, "field_id") <- name
+  attr(res, "updater") <- get_updater(name, typ)
 
   res
 }
@@ -162,12 +201,14 @@ build_field <- function(typ, name, label, args) {
 #' @param cols Relevant columns
 #' @param types Shiny input types
 #' @param args (Optional) input field arguments
+#' @param update_arg_name (Optional) input field arguments
 #' @param name_prefix Prefix for input names
 #'
 #' @rdname dtedit
 #' @export
 build_modal_fields <- function(dat, cols = names(dat), types = NULL,
-                               args = NULL, name_prefix = "dtedit") {
+                               args = NULL, update_arg_name = NULL,
+                               name_prefix = "dtedit") {
 
   fix_num <- function(typ, args, dat) {
     sel <- typ == "numericInput" &
