@@ -18,7 +18,7 @@ test_that("modal field builder", {
   expect_named(fields, names(dat))
 
   for (field in fields) {
-    expect_s3_class(field, "shiny.tag")
+    expect_type(field, "closure")
   }
 
   sl <- unique(dat$Sepal.Length)
@@ -36,4 +36,6 @@ test_that("modal field builder", {
     cols = c("Sepal.Length", "Petal.Length", "Petal.Width"),
     args = args
   )
+
+  expect_named(fields, c("Sepal.Length", "Petal.Length", "Petal.Width"))
 })

@@ -27,7 +27,13 @@ dtedit <- function(input, output, name, rv_dat, cols, fields, values, insert,
   )
 
   shiny::observeEvent(input[[add_name(name)]], {
-    shiny::showModal(insert_modal(name, fields))
+
+    shiny::showModal(
+      insert_modal(
+        name,
+        lapply(fields, do.call, list())
+      )
+    )
   })
 
   shiny::observeEvent(input[[rm_name(name)]], {
@@ -37,15 +43,18 @@ dtedit <- function(input, output, name, rv_dat, cols, fields, values, insert,
   })
 
   shiny::observeEvent(input[[edit_name(name)]], {
+
     if (is_row_selected(input, name)) {
 
       dat <- rv_dat()
       row <- get_selected_row(input, name, nrow(dat))
 
-      shiny::showModal(update_modal(name, fields))
-
-      funs <- lapply(fields, attr, "updater")
-      Map(do.call, funs, lapply(dat[row, names(funs)], list))
+      shiny::showModal(
+        update_modal(
+          name,
+          Map(do.call, fields, lapply(dat[row, names(fields)], list))
+        )
+      )
     }
   })
 
@@ -137,62 +146,87 @@ map_types <- function(dat, types = NULL) {
   res
 }
 
-map_updater <- function(field) {
-  switch(
-    field,
-    textInput = function(id, value) {
-      shiny::updateTextInput(inputId = id, value = value)
-    },
-    textAreaInput = function(id, value) {
-      shiny::updateTextAreaInput(inputId = id, value = value)
-    },
-    dateInput = function(id, value) {
-      shiny::updateDateInput(inputId = id, value = value)
-    },
-    selectInput = function(id, value) {
-      shiny::updateSelectInput(inputId = id, selected = value)
-    },
-    numericInput = function(id, value) {
-      shiny::updateNumericInput(inputId = id, value = value)
-    },
-    `shinytreeview::treecheckInput` = function(id, value) {
-      shinytreeview::updateTreeview(inputId = id, selected = value)
-    },
-    stop("unknown mapping for updater")
-  )
-}
-
-get_updater <- function(id, field) {
-  id <- force(id)
-  fun <- map_updater(field)
-  function(value) fun(id, value)
-}
-
-default_numeric_value <- function(x) {
-  list(value = stats::quantile(x, 0.5, type = 1, names = FALSE))
-}
-
-default_select_value <- function(x) {
-  list(choices = levels(x))
-}
-
-build_field <- function(typ, name, label, args) {
+build_field <- function(typ, id, dat, lab, args) {
 
   fun <- strsplit(typ, "::")[[1L]]
 
   if (length(fun) == 2L) {
     ns <- asNamespace(fun[1L])
-    fun <- fun[2L]
+    field <- fun[2L]
   } else {
     stopifnot(length(fun) == 1L)
     ns <- asNamespace("shiny")
+    field <- fun
   }
 
-  fun <- get(fun, envir = ns)
-  res <- do.call(fun, c(list(name, label), args))
+  fun <- get(field, envir = ns)
 
-  attr(res, "field_id") <- name
-  attr(res, "updater") <- get_updater(name, typ)
+  stopifnot(
+    !length(args) || !is.null(names(args)),
+    !any(names(args) == ""),
+    !"inputId" %in% names(args),
+    !"label" %in% names(args)
+  )
+
+  args[["inputId"]] <- id
+  args[["label"]] <- lab
+
+  if (identical(field, "selectInput")) {
+
+    if (!"choices" %in% names(args)) {
+      args[["choices"]] <- if (is.factor(dat)) levels(dat) else unique(dat)
+    }
+
+  } else if (identical(field, "numericInput")) {
+
+    if (!"value" %in% names(args)) {
+      args[["value"]] <- stats::quantile(dat, 0.5, type = 1, names = FALSE)
+    }
+  }
+
+  res <- switch(
+    field,
+    textInput = function(value) {
+      if (!missing(value)) {
+        args[["value"]] <- value
+      }
+      do.call(shiny::textInput, args)
+    },
+    textAreaInput = function(value) {
+      if (!missing(value)) {
+        args[["value"]] <- value
+      }
+      do.call(shiny::textAreaInput, args)
+    },
+    dateInput = function(value) {
+      if (!missing(value)) {
+        args[["value"]] <- value
+      }
+      do.call(shiny::dateInput, args)
+    },
+    selectInput = function(value) {
+      if (!missing(value)) {
+        args[["selected"]] <- value
+      }
+      do.call(shiny::selectInput, args)
+    },
+    numericInput = function(value) {
+      if (!missing(value)) {
+        args[["value"]] <- value
+      }
+      do.call(shiny::numericInput, args)
+    },
+    treecheckInput = function(value) {
+      if (!missing(value)) {
+        args[["selected"]] <- value
+      }
+      browser()
+      do.call(shinytreeview::treecheckInput, args)
+    },
+    stop("unknown mapping for input fun")
+  )
+
+  attr(res, "field_id") <- id
 
   res
 }
@@ -201,30 +235,12 @@ build_field <- function(typ, name, label, args) {
 #' @param cols Relevant columns
 #' @param types Shiny input types
 #' @param args (Optional) input field arguments
-#' @param update_arg_name (Optional) input field arguments
 #' @param name_prefix Prefix for input names
 #'
 #' @rdname dtedit
 #' @export
 build_modal_fields <- function(dat, cols = names(dat), types = NULL,
-                               args = NULL, update_arg_name = NULL,
-                               name_prefix = "dtedit") {
-
-  fix_num <- function(typ, args, dat) {
-    sel <- typ == "numericInput" &
-      !names(typ) %in% names(args)[lengths(args) > 0L]
-    sel <- names(typ[sel])
-    args[sel] <- lapply(dat[, sel, drop = FALSE], default_numeric_value)
-    args
-  }
-
-  fix_sel <- function(typ, args, dat) {
-    sel <- typ == "selectInput" &
-      !names(typ) %in% names(args)[lengths(args) > 0L]
-    sel <- names(typ[sel])
-    args[sel] <- lapply(dat[, sel, drop = FALSE], default_select_value)
-    args
-  }
+                               args = NULL, name_prefix = "dtedit") {
 
   if (is.null(args)) {
     args <- list()
@@ -242,14 +258,11 @@ build_modal_fields <- function(dat, cols = names(dat), types = NULL,
   tmp <- dat[, cols]
   typ <- map_types(tmp, types)
 
-  args <- fix_num(typ, args, dat)
-  args <- fix_sel(typ, args, dat)
-
   args <- args[cols]
   typ <- typ[cols]
   nme <- paste(name_prefix, sub("^.+::", "", typ), cols, sep = "-")
 
-  Map(build_field, typ, nme, cols, args)
+  Map(build_field, typ, nme, tmp, cols, args)
 }
 
 insert_name <- function(name) {
